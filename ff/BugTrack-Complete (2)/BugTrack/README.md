@@ -223,4 +223,3 @@ Then open: http://localhost:3000
 
 *College Project P6 — Automated Bug Tracking System*
 *Stack: React + Node.js/Express + MongoDB + JWT Auth*
-"# bugtracking" 
