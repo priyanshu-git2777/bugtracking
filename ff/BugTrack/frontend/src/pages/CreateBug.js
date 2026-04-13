@@ -1,0 +1,149 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { toast } from 'react-toastify';
+
+const lbl = { 
+  display:'block', 
+  fontSize:'.75rem', 
+  color:'#9ca3af', 
+  marginBottom:5, 
+  textTransform:'uppercase', 
+  letterSpacing:'.06em' 
+};
+
+export default function CreateBug() {
+  const nav  = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+
+  // Role Restriction
+  if (user?.role === "Developer") {
+    return (
+      <div style={{ padding:'2rem', textAlign:'center' }}>
+        <h2>Access Denied</h2>
+        <p>Developers cannot report bugs. Only Testers or Admin can.</p>
+      </div>
+    );
+  }
+
+  const auth = { headers: { Authorization: `Bearer ${user?.token}` } };
+
+  const [form, setForm] = useState({ 
+    title:'', 
+    description:'', 
+    severity:'Minor', 
+    project:'', 
+    assignedTo:'' 
+  });
+
+  const [loading, setLoading] = useState(false);
+
+  const ch = e => setForm({ ...form, [e.target.name]: e.target.value });
+
+  const submit = async e => {
+    e.preventDefault();
+    if (!form.title.trim() || !form.description.trim()) 
+      return toast.error('Title and description are required');
+
+    setLoading(true);
+
+    try {
+      await axios.post('/api/bugs', { 
+        ...form, 
+        assignedTo: form.assignedTo || undefined 
+      }, auth);
+
+      toast.success('Bug reported successfully! 🐛');
+      nav('/bugs');
+
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create bug');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sevBtn = (val, color) => ({
+    flex:1,
+    padding:'.6rem',
+    borderRadius:8,
+    border: form.severity===val ? `2px solid ${color}` : '1px solid #1e2330',
+    background: form.severity===val ? `${color}18` : '#191c25',
+    color: form.severity===val ? color : '#6b7280',
+    fontSize:'.82rem',
+    fontWeight:600,
+  });
+
+  return (
+    <div style={{ padding:'2rem', maxWidth:700, margin:'0 auto' }}>
+      <h1 style={{ fontSize:'1.5rem', fontWeight:800, marginBottom:4 }}>
+        Report a Bug
+      </h1>
+
+      <p style={{ color:'#6b7280', fontSize:'.85rem', marginBottom:'2rem' }}>
+        Fill in the details to log a new bug into the system.
+      </p>
+
+      <div style={{ 
+        background:'#13161d', 
+        border:'1px solid #1e2330', 
+        borderRadius:16, 
+        padding:'2rem' 
+      }}>
+        
+        <form onSubmit={submit}>
+
+          <div style={{ marginBottom:'1.2rem' }}>
+            <label style={lbl}>Bug Title *</label>
+            <input 
+              name="title"
+              placeholder="Short, clear title describing the bug..."
+              value={form.title}
+              onChange={ch}
+              required
+            />
+          </div>
+
+          <div style={{ marginBottom:'1.2rem' }}>
+            <label style={lbl}>Description *</label>
+            <textarea
+              name="description"
+              rows={5}
+              value={form.description}
+              onChange={ch}
+              required
+            />
+          </div>
+
+          <div style={{ marginBottom:'1.2rem' }}>
+            <label style={lbl}>Severity *</label>
+
+            <div style={{ display:'flex', gap:'.75rem' }}>
+              <button type="button" style={sevBtn('Critical','#ff4d6d')} 
+                onClick={() => setForm({...form, severity:'Critical'})}>
+                🔴 Critical
+              </button>
+
+              <button type="button" style={sevBtn('Major','#ffb400')}
+                onClick={() => setForm({...form, severity:'Major'})}>
+                🟡 Major
+              </button>
+
+              <button type="button" style={sevBtn('Minor','#00d4aa')}
+                onClick={() => setForm({...form, severity:'Minor'})}>
+                🟢 Minor
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display:'flex', gap:'.75rem' }}>
+            <button type="submit" disabled={loading}>
+              {loading ? 'Submitting...' : '🐛 Submit Bug Report'}
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  );
+}
