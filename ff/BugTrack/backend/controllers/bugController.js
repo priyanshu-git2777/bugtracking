@@ -35,14 +35,33 @@ const createBug = async (req, res) => {
 };
 
 // PUT /api/bugs/:id
+// PUT /api/bugs/:id
 const updateBug = async (req, res) => {
   try {
     const bug = await Bug.findById(req.params.id);
     if (!bug) return res.status(404).json({ message: 'Bug not found' });
-    Object.assign(bug, req.body);
+
+    bug.title = req.body.title || bug.title;
+    bug.description = req.body.description || bug.description;
+    bug.severity = req.body.severity || bug.severity;
+    bug.status = req.body.status || bug.status;
+    bug.project = req.body.project || bug.project;
+
+    // ⭐ IMPORTANT FIX
+    if (req.body.assignedTo !== undefined) {
+      bug.assignedTo = req.body.assignedTo || null;
+    }
+
     await bug.save();
+
+    await bug.populate('reportedBy', 'name email role');
+    await bug.populate('assignedTo', 'name email');
+
     res.json(bug);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 };
 
 // DELETE /api/bugs/:id

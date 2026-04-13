@@ -15,6 +15,7 @@ const Badge = ({ val, map }) => (
 const lbl = { display:'block', fontSize:'.72rem', color:'#9ca3af', marginBottom:5, textTransform:'uppercase' };
 
 export default function BugList() {
+  const [developers, setDevelopers] = useState([]);
   const nav  = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const auth = { headers: { Authorization: `Bearer ${user?.token}` } };
@@ -37,8 +38,16 @@ export default function BugList() {
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, []);
+ useEffect(() => {
+  load();
 
+  axios.get('/api/users/developers', auth)
+    .then(res => {
+      setDevelopers(res.data);
+    })
+    .catch(err => console.log(err));
+
+}, []);
   const deleteBug = async (id) => {
     if (!window.confirm('Delete this bug permanently?')) return;
     try {
@@ -49,21 +58,36 @@ export default function BugList() {
   };
 
   const openEdit = (b) => {
-    setEditing(b);
-    setEForm({ title:b.title, description:b.description, severity:b.severity, status:b.status, project:b.project||'' });
-  };
+  setEditing(b);
+  setEForm({ 
+    title:b.title, 
+    description:b.description, 
+    severity:b.severity, 
+    status:b.status, 
+    project:b.project||'',
+    assignedTo: b.assignedTo || ''
+  });
+};
 
   const saveEdit = async () => {
     try {
-      await axios.put(`/api/bugs/${editing._id}`, eForm, auth);
+     await axios.put(`/api/bugs/${editing._id}`, {
+  ...eForm,
+  assignedTo: eForm.assignedTo || undefined
+}, auth);
       toast.success('Bug updated!');
       setEditing(null);
       load();
     } catch { toast.error('Update failed'); }
   };
-
-  const roleFiltered = user?.role === "Developer"
-  ? bugs.filter(b => b.assignedTo === user?._id)
+console.log("USER ID:", user?._id);
+console.log("BUGS:", bugs);
+console.log("ASSIGNED TO:", bugs[0]?.assignedTo);
+ const roleFiltered = user?.role === "Developer"
+  ? bugs.filter(b => 
+      String(b.assignedTo) === String(user?._id) ||
+      String(b.assignedTo?._id) === String(user?._id)
+    )
   : bugs;
 
 const filtered = roleFiltered
@@ -169,6 +193,22 @@ const filtered = roleFiltered
               </div>
             </div>
             <div style={{ marginBottom:'1.5rem' }}>
+              {user?.role === "Admin" && (
+  <div style={{ marginBottom:'1rem' }}>
+    <label style={lbl}>Assign To (Developer ID)</label>
+   <select
+  value={eForm.assignedTo || ''}
+  onChange={e=>setEForm({...eForm, assignedTo:e.target.value})}
+>
+  <option value="">Assign Developer</option>
+  {developers.map(dev => (
+    <option key={dev._id} value={dev._id}>
+      {dev.name}
+    </option>
+  ))}
+</select>
+  </div>
+)}
               <label style={lbl}>Project</label>
               <input value={eForm.project} onChange={e=>setEForm({...eForm,project:e.target.value})} />
             </div>
